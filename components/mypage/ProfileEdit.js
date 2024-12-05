@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import Modal from 'react-native-modal';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { doc, setDoc } from 'firebase/firestore'; // Firestore 관련 추가
+import { db } from '../firebase/firebase'; // Firestore 연결
+import { getAuth } from 'firebase/auth';
 
 export default function ProfileEdit({ navigation, route }) {
   const STORAGE_KEY = 'RUNNING_STYLE';
@@ -68,12 +71,30 @@ export default function ProfileEdit({ navigation, route }) {
     };
 
     try {
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfile)); // AsyncStorage에 저장
+      // Firebase Auth에서 현재 사용자 ID 가져오기
+      const auth = getAuth();
+      const userId = auth.currentUser?.uid;
+
+      if (!userId) {
+        alert('로그인이 필요합니다.');
+        return;
+      }
+
+      // Firestore에서 사용자 문서 참조 생성
+      const userDocRef = doc(db, 'users', userId);
+
+      // Firestore에 프로필 데이터 저장
+      await setDoc(userDocRef, updatedProfile, { merge: true });
+
+      // AsyncStorage에 저장 (기존 코드 유지)
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedProfile));
+
       setProfile(updatedProfile); // MyPage 상태 업데이트
       alert('프로필 데이터가 저장되었습니다!');
       navigation.goBack(); // 이전 화면으로 이동
     } catch (error) {
       console.error('Failed to save profile data:', error);
+      alert('프로필 데이터 저장에 실패했습니다.');
     }
   };
 
